@@ -1,0 +1,7 @@
+# Dependencias
+node_modules/
+backend/venv/
+__pycache__/
+
+# Variables de entorno (¡CRÍTICO!)
+.env
