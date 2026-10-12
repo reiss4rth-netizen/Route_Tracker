@@ -35,7 +35,8 @@ class Trip(db.Model):
     origin = db.Column(db.String(120), nullable=False)
     destination = db.Column(db.String(120), nullable=False)
     start_date = db.Column(db.DateTime, nullable=False)
-    end_date = db.Column(db.DateTime, nullable=False)
+    end_date = db.Column(db.DateTime, nullable=True)
+    is_public = db.Column(db.Boolean, default=False)
     
     distance_km = db.Column(db.Float, nullable=False)
     duration_minutes = db.Column(db.Float, nullable=False)
@@ -64,11 +65,12 @@ class Stop(db.Model):
     __tablename__ = 'stop'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
-    stop_type = db.Column(db.String(50), nullable=False)
+    stop_type = db.Column(db.String(120), nullable=False)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
     stop_order = db.Column(db.Integer, nullable=False)
-    description = db.Column(db.Text, nullable=True),
+    description = db.Column(db.Text, nullable=True)
+    visited = db.Column(db.Boolean, default=False)
     expected_weather = db.Column(db.String(120), nullable=True)
     last_weather_update = db.Column(db.DateTime, nullable=True)
     trip_id = db.Column(db.Integer, db.ForeignKey('trip.id'), nullable=False)

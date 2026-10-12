@@ -1,0 +1,20 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+flask = "*"
+flask-sqlalchemy = "*"
+flask-cors = "*"
+python-dotenv = "*"
+requests = "*"
+pyjwt = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.14"
+
+[scripts]
+start = "python backend/app.py"

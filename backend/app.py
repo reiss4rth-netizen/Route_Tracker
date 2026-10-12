@@ -1,5 +1,4 @@
 import os
-from flask_jwt_extended import current_user
 import jwt
 import requests
 from functools import wraps
@@ -164,5 +163,58 @@ def delete_user(user_id):
 @token_required
 def create_trip(current_user):
     data = request.get_json(silent=True)
-    if not data or not all(field in data for field in ['origin', 'destination', 'start_date', 'end_date']):
+    if not data:
         return jsonify({"error": "Faltan datos obligatorios"}), 400
+    if not all(field in data for field in ['origin', 'destination', 'start_date']):
+        return jsonify({"error": "Faltan datos obligatorios"}), 400
+    try:
+        start_date_obj = datetime.strptime(data['start_date'], "%Y-%m-%d %H:%M:%S")
+        distancia_simulation = 100.0  # Simulated distance in km
+        duration_simulation = 120.0    # Simulated duration in minutes
+        calculated_end_date = start_date_obj + timedelta(minutes=duration_simulation)
+        
+        new_trip = Trip(
+            origin= data['origin'],
+            destination= data['destination'],
+            start_date= start_date_obj,
+            end_date= calculated_end_date,
+            distance_km= distancia_simulation,
+            duration_minutes= duration_simulation,
+            status= data.get('status', 'planned'),
+            notes= data.get('notes'),
+            user_id= current_user.id,
+            is_public= data.get('is_public', False)
+        )
+        db.session.add(new_trip)
+        db.session.flush()
+        
+        if 'stops' in data and isinstance(data['stops'], list):
+            for index, stop_data in enumerate(data['stops']):
+                new_stop = Stop(
+                    name=stop_data.get('name'),
+                    latitude=stop_data.get('latitude'),
+                    longitude=stop_data.get('longitude'),
+                    stop_order=index,
+                    description=stop_data.get('description'),
+                    visited=stop_data.get('visited', False),
+                    expected_weather=stop_data.get('expected_weather'),
+                    last_weather_update=datetime.strptime(stop_data['last_weather_update'], "%Y-%m-%d %H:%M:%S") if 'last_weather_update' in stop_data else None,
+                    trip_id=new_trip.id
+                )
+                db.session.add(new_stop)
+        db.session.commit()
+        return jsonify({
+            "message": "Viaje creado exitosamente", 
+            "trip": new_trip.to_json()
+            }), 201
+    except ValueError:
+        return jsonify({"error": "Formato de fecha inválido. Use 'YYYY-MM-DD HH:MM:SS'"}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Error al crear el viaje", "details": str(e)}), 500
+
+with app.app_context():
+    db.create_all()
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
