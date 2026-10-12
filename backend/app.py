@@ -191,17 +191,18 @@ def create_trip(current_user):
         if 'stops' in data and isinstance(data['stops'], list):
             for index, stop_data in enumerate(data['stops']):
                 new_stop = Stop(
-                    name=stop_data.get('name'),
-                    latitude=stop_data.get('latitude'),
-                    longitude=stop_data.get('longitude'),
-                    stop_order=index,
-                    description=stop_data.get('description'),
-                    visited=stop_data.get('visited', False),
-                    expected_weather=stop_data.get('expected_weather'),
-                    last_weather_update=datetime.strptime(stop_data['last_weather_update'], "%Y-%m-%d %H:%M:%S") if 'last_weather_update' in stop_data else None,
-                    trip_id=new_trip.id
-                )
-                db.session.add(new_stop)
+                name=stop_data.get('name'),
+                stop_type=stop_data.get('stop_type'), # Campo requerido añadido
+                latitude=stop_data.get('latitude'),
+                longitude=stop_data.get('longitude'),
+                stop_order=index,
+                description=stop_data.get('description'),
+                visited=stop_data.get('visited', False),
+                expected_weather=stop_data.get('expected_weather'),
+                last_weather_update=datetime.strptime(stop_data['last_weather_update'], "%Y-%m-%d %H:%M:%S") if 'last_weather_update' in stop_data else None,
+                trip_id=new_trip.id
+        )
+        db.session.add(new_stop)
         db.session.commit()
         return jsonify({
             "message": "Viaje creado exitosamente", 
