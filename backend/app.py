@@ -113,9 +113,9 @@ def login():
         return jsonify({"error": "Nombre de usuario o contraseña incorrectos"}), 401   
     
 # Editar usuario
-@app.route('/api/<int:user_id>', methods=['PUT'])
+@app.route('/api/user/<int:user_id>', methods=['PUT'])
 @token_required
-def update_user(user_id):
+def update_user(current_user, user_id):
     if current_user.id != user_id:
         return jsonify({"error": "No autorizado para actualizar este usuario"}), 403
     data = request.get_json()
@@ -123,15 +123,36 @@ def update_user(user_id):
     
     try:
         if 'name' in data:
-            user.name = data['name']
+            name_val= str(data['name']).strip() if data['name'] is not None else ""
+            if not name_val:
+                return jsonify({
+                    "error": "El nombre no puede estar vacío"
+                }), 400
+            user.name = name_val
         if 'username' in data:
-            if User.query.filter_by(username=data['username']).first():
-                return jsonify({"error": "Nombre de usuario ya existente"}), 400
-            user.username = data['username']
+            username_val = str(data['username']).strip() if data['username'] is not None else ""
+            if not username_val:
+                return jsonify({
+                    "error": "El nombre de usuario no puede estar vacío"
+                }),400
+            existing_user = User.query.filter_by(username=username_val).first()
+            if existing_user and existing_user.id != user.id:
+                return jsonify({
+                    "error": "El nombre de usuario ya existe"
+                }), 400
+            user.username = username_val
         if 'email' in data:
-            if User.query.filter_by(email=data['email']).first():
-                return jsonify({"error": "Ya hay una cuenta registrada con ese correo electrónico"}), 400
-            user.email = data['email']
+            email_val = str(data['email']).strip() if data['email'] is not None else ""
+            if not email_val:
+                return jsonify({
+                    "error": "El email no puede estar vacío"
+                }), 400
+            existing_email = User.query.filter_by(email=email_val).first()
+            if existing_email and existing_email.id != user.id:
+                return jsonify({
+                    "error": "Este email ya esta en uso"
+                }), 400
+            user.email = email_val
         
         db.session.commit()
         return jsonify({
@@ -140,12 +161,14 @@ def update_user(user_id):
             }), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Error al actualizar el usuario", "details": str(e)}), 500
+        return jsonify({"error": "Error al actualizar el usuario", 
+                        "details": str(e)
+                        }), 500
     
 # Eliminar usuario
-@app.route('/api/<int:user_id>', methods=['DELETE'])
+@app.route('/api/user/<int:user_id>', methods=['DELETE'])
 @token_required
-def delete_user(user_id):
+def delete_user(current_user, user_id):
     if current_user.id != user_id:
         return jsonify({"error": "No autorizado para eliminar este usuario"}), 403
     user = User.query.get_or_404(user_id)
@@ -213,6 +236,28 @@ def create_trip(current_user):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Error al crear el viaje", "details": str(e)}), 500
+    
+# Eliminar un viaje
+@app.route('/api/trips/<int:trip_id>', methods = ['DELETE'])
+@token_required
+def delete_trip(current_user, trip_id):
+    trip = Trip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        return ({
+            "error": "No autorizado para eliminar este viaje"
+        }), 403
+    try:
+        db.session.delete(trip)
+        db.session.commit()
+        return jsonify({
+            "menssage": "Vieje eliminado con exito"
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "error": "Error al eliminar viaje", 
+            "details": str(e)
+        }), 500
 
 with app.app_context():
     db.create_all()
