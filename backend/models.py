@@ -11,9 +11,10 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    profile_photo = db.Column(db.String(512), nullable=True)
     date_created = db.Column(db.DateTime, default=datetime.utcnow)
     
-    trips = db.relationship('Trip', backref='user', lazy=True)
+    trips = db.relationship('Trip', backref='user', lazy=True, cascade="all, delete-orphan")
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -26,6 +27,7 @@ class User(db.Model):
             "name": self.name,
             "username": self.username,
             "email": self.email,
+            "profile_photo": self.profile_photo,
             "date_created": self.date_created.strftime("%Y-%m-%d %H:%M:%S")
         }
              
@@ -53,6 +55,7 @@ class Trip(db.Model):
             "destination": self.destination,
             "start_date": self.start_date.strftime("%Y-%m-%d %H:%M:%S") if self.start_date else None,
             "end_date": self.end_date.strftime("%Y-%m-%d %H:%M:%S") if self.end_date else None,
+            "is_public": self.is_public,
             "distance_km": self.distance_km,
             "duration_minutes": self.duration_minutes,
             "status": self.status,
@@ -84,6 +87,7 @@ class Stop(db.Model):
             "longitude": self.longitude,
             "stop_order": self.stop_order,
             "description": self.description,
+            "visited": self.visited,
             "expected_weather": self.expected_weather,
             "last_weather_update": self.last_weather_update.strftime("%Y-%m-%d %H:%M:%S") if self.last_weather_update else None,
             "trip_id": self.trip_id

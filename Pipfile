@@ -10,6 +10,8 @@ flask-cors = "*"
 python-dotenv = "*"
 requests = "*"
 pyjwt = "*"
+boto3 = "*"
+flask-migrate = "*"
 
 [dev-packages]
 
