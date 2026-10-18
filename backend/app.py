@@ -4,10 +4,10 @@ import requests
 from functools import wraps
 from flask_cors import CORS
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import Flask, jsonify, request
 from flask_migrate import Migrate
-from models import db, User, Trip, Stop
+from models import db, User, Trip, Stop, Media
 from services import (
     token_required,
     get_coordinates_from_address,
@@ -58,7 +58,7 @@ def register():
         
         token = jwt.encode({
             'user_id': new_user.id,
-            'exp': datetime.utcnow() + timedelta(hours=24)      
+            'exp': datetime.now(timezone.utc) + timedelta(hours=24)      
         }, app.config['SECRET_KEY'], algorithm='HS256')
         return jsonify({"message": "Usuario registrado exitosamente", 
                     "user": new_user.to_json(),
@@ -82,7 +82,7 @@ def login():
     if user and user.check_password(data['password']):
         token = jwt.encode({
             'user_id': user.id,
-            'exp': datetime.utcnow() + timedelta(hours=24)      
+            'exp': datetime.now(timezone.utc) + timedelta(hours=24)     
         }, app.config['SECRET_KEY'], algorithm='HS256')
         return jsonify({"message": "Inicio de sesión exitoso", 
                     "user": user.to_json(),
@@ -160,6 +160,37 @@ def delete_user(current_user, user_id):
         db.session.rollback()
         return jsonify({"error": "Error al eliminar el usuario", "details": str(e)}), 500
     
+
+# Obtener perfil propio
+@app.route('/api/me')
+@token_required
+def get_my_profile(current_user):
+    user_data = current_user.to_json()
+    user_data['trips'] = [trip.to_json() for trip in current_user.trips]
+    return jsonify(user_data),200
+
+# Obtener un perfil público
+@app.route('/api/user/<string:username>', methods=['GET'])
+def get_public_profile(username):
+    user = User.query.filter_by(username=username).first_or_404()
+    public_trips = Trip.query.filter_by(user_id=user.id, is_public=True).order_by(Trip.start_date.desc()).all()
+    profile_data = user.to_public_json()
+    profile_data['trips']= [trip.to_json() for trip in public_trips]
+    return jsonify(profile_data), 200
+
+# Buscador de perfiles
+@app.route('/api/search')
+def get_users():
+    search_query = request.args.get('search', '').strip()
+    if search_query:
+        users = User.query.filter(
+            (User.username.ilike(f"%{search_query}%")) |
+            (User.name.ilike(f"%{search_query}%"))
+        ).all()
+    else:
+        users = User.query.all()
+    return jsonify([user.to_public_json() for user in users]), 200
+
 # Crear viaje 
 @app.route('/api/trips', methods=['POST'])
 @token_required
@@ -204,7 +235,7 @@ def create_trip(current_user):
                     last_weather_update=datetime.strptime(stop_data['last_weather_update'], "%Y-%m-%d %H:%M:%S") if 'last_weather_update' in stop_data else None,
                     trip_id=new_trip.id
             )
-            db.session.add(new_stop)
+                db.session.add(new_stop)
         db.session.commit()
         return jsonify({
             "message": "Viaje creado exitosamente", 
@@ -215,6 +246,51 @@ def create_trip(current_user):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": "Error al crear el viaje", "details": str(e)}), 500
+    
+# Rutas públicas para el feed 
+@app.route('/api/feed')
+def get_public_trips():
+    public_trips = Trip.query.filter_by(is_public=True).order_by(Trip.start_date.desc()).all()
+    results = []
+    for trip in public_trips:
+        trip_data = trip.to_json()
+        trip_data['author'] = {
+            "username": trip.user.username,
+            "name": trip.user.name,
+            "profile_photo": trip.user.profile_photo
+        }
+        results.append(trip_data)
+    return jsonify(results), 200
+
+# Ver detalles de un viaje 
+@app.route('/api/trip/<int:trip_id>', methods=['GET'])
+def get_trip_detail(trip_id):
+    trip = Trip.query.get_or_404(trip_id)
+    if trip.is_public:
+        return jsonify(trip.to_json()), 200
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        return jsonify({
+            "error": "Este viaje es privado"
+        }), 401
+    parts = auth_header.split(" ")
+    token = parts[1] if len(parts) > 1 else None
+    if not token:
+        return jsonify({
+            "error": "Credencial inválida"
+        }), 401
+    try:
+        data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        current_user = User.query.get(data['user_id'])
+        if not current_user:
+            return jsonify({"error": "Usuario no encontrado"}), 401
+    except Exception:
+        return jsonify({"error": "Token inválido o expirado"}), 401
+
+    if trip.user_id != current_user.id:
+        return jsonify({"error": "No tienes permiso para ver este viaje privado"}), 403
+
+    return jsonify(trip.to_json()), 200
     
 # Eliminar un viaje
 @app.route('/api/trips/<int:trip_id>', methods = ['DELETE'])
@@ -274,8 +350,9 @@ def upload_profile_picture(current_user, user_id):
         return jsonify({
             "error": "Error al subir la imagen",
             "details": str(e)
-        })
+        }),500
         
+# Eliminar una foto de perfil
 @app.route('/api/user/<int:user_id>/profile-photo', methods=['DELETE'])
 @token_required
 def delete_profile_photo(current_user, user_id):
@@ -302,6 +379,108 @@ def delete_profile_photo(current_user, user_id):
             "error": "Error al eliminar",
             "details": str(e)
         }), 500
+        
+# Manejo de multimedia:
+
+# Multimedia para un viaje
+@app.route('/api/trips/<int:trip_id>/media', methods=['POST'])
+@token_required
+def upload_trip_media(current_user, trip_id):
+    trip = Trip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        return jsonify({"error": "No autorizado para modificar este viaje"}), 403
+
+    if 'file' not in request.files:
+        return jsonify({"error": "No se envió ningún archivo"}), 400
+
+    file = request.files['file']
+    if file.filename == '' or not allowed_file(file.filename):
+        return jsonify({"error": "Formato de archivo no permitido"}), 400
+
+    try:
+        media_url = upload_file_to_s3(file, folder=f"trips/{trip_id}")
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        media_type = 'video' if ext in {'mp4', 'mov'} else 'image'
+
+        new_media = Media(
+            url=media_url,
+            media_type=media_type,
+            caption=request.form.get('caption'),
+            trip_id=trip.id
+        )
+        db.session.add(new_media)
+        db.session.commit()
+
+        return jsonify({
+            "message": "Archivo multimedia subido con éxito",
+            "media": new_media.to_json()
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Error al subir multimedia", "details": str(e)}), 500
+    
+# Multimedia para una parada
+@app.route('/api/stops/<int:stop_id>/media', methods=['POST'])
+@token_required
+def upload_stop_media(current_user, stop_id):
+    stop = Stop.query.get_or_404(stop_id)
+    
+    if stop.trip.user_id != current_user.id:
+        return jsonify({"error": "No autorizado para modificar esta parada"}), 403
+
+    if 'file' not in request.files:
+        return jsonify({"error": "No se envió ningún archivo"}), 400
+
+    file = request.files['file']
+    if file.filename == '' or not allowed_file(file.filename):
+        return jsonify({"error": "Formato de archivo no permitido"}), 400
+
+    try:
+        media_url = upload_file_to_s3(file, folder=f"trips/{stop.trip_id}/stops/{stop_id}")
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        media_type = 'video' if ext in {'mp4', 'mov'} else 'image'
+
+        new_media = Media(
+            url=media_url,
+            media_type=media_type,
+            caption=request.form.get('caption'),
+            stop_id=stop.id
+        )
+        db.session.add(new_media)
+        db.session.commit()
+
+        return jsonify({
+            "message": "Archivo multimedia subido a la parada con éxito",
+            "media": new_media.to_json()
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Error al subir multimedia", "details": str(e)}), 500
+    
+# Eliminar multimedia
+@app.route('/api/media/<int:media_id>', methods=['DELETE'])
+@token_required
+def delete_media(current_user, media_id):
+    media = Media.query.get_or_404(media_id)
+
+    owner_id = None
+    if media.trip:
+        owner_id = media.trip.user_id
+    elif media.stop:
+        owner_id = media.stop.trip.user_id
+
+    if owner_id != current_user.id:
+        return jsonify({"error": "No autorizado para eliminar este archivo"}), 403
+
+    try:
+        delete_file_from_s3(media.url)
+        db.session.delete(media)
+        db.session.commit()
+        return jsonify({"message": "Archivo multimedia eliminado con éxito"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Error al eliminar multimedia", "details": str(e)}), 500
+    
         
 with app.app_context():
     db.create_all()

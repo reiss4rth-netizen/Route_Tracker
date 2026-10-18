@@ -10,7 +10,7 @@ from models import User
 from dotenv import load_dotenv
 load_dotenv()
 
-ALLOWED_EXTENSION = {'png', 'jpg', 'jpeg', 'webp'}
+ALLOWED_EXTENSION = {'png', 'jpg', 'jpeg', 'webp', 'mp4', 'mov'}
 BUCKET_NAME = os.getenv("AWS_S3_BUCKET_NAME")
 REGION = os.getenv("AWS_REGION")
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -26,22 +26,32 @@ s3_client = boto3.client(
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = None
-        if 'Authorization' in request.headers:
-            auth_header = request.headers['Authorization']
-            token = auth_header.split(" ")[1] if len(auth_header.split(" ")) > 1 else None
-            
-        if not token:
+        auth_header = request.headers.get('Authorization', '').strip()
+        if not auth_header:
             return jsonify({"error": "Token ausente, acceso denegado"}), 401
-        
+
+        parts = auth_header.split()
+        token = parts[-1].strip('"\'') if parts else None
+
+        if not token or token.lower() == 'bearer':
+            return jsonify({"error": "Formato de token inválido. Usa 'Bearer <token>'"}), 401
+
         try:
-            data = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-            current_user = User.query.get(data['user_id'])
+            data = jwt.decode(
+                token,
+                current_app.config['SECRET_KEY'],
+                algorithms=['HS256']
+            )
+            current_user = db.session.get(User, data['user_id']) if hasattr(db, 'session') else User.query.get(data['user_id'])
             if not current_user:
                 return jsonify({"error": "Usuario no encontrado"}), 401
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "El token ha expirado, inicia sesión nuevamente"}), 401
+        except jwt.InvalidTokenError as e:
+            return jsonify({"error": "Token inválido", "details": str(e)}), 401
         except Exception as e:
-            return jsonify({"error": "Token inválido o expirado"}), 401
-        
+            return jsonify({"error": "Error al validar el token", "details": str(e)}), 401
+
         return f(current_user, *args, **kwargs)
     return decorated
 

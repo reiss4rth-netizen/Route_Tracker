@@ -30,6 +30,15 @@ class User(db.Model):
             "profile_photo": self.profile_photo,
             "date_created": self.date_created.strftime("%Y-%m-%d %H:%M:%S")
         }
+        
+    def to_public_json(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "username": self.username,
+            "profile_photo": self.profile_photo,
+            "date_created": self.date_created.strftime("%Y-%m-%d %H:%M:%S")
+        }
              
 class Trip(db.Model):
     __tablename__ = 'trip'
@@ -47,6 +56,7 @@ class Trip(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     stops = db.relationship('Stop', backref='trip', lazy=True, cascade="all, delete-orphan",order_by="Stop.stop_order")
+    media = db.relationship('Media', backref='trip', lazy=True, cascade="all, delete-orphan", foreign_keys='Media.trip_id')
     
     def to_json(self):
         return {
@@ -61,7 +71,8 @@ class Trip(db.Model):
             "status": self.status,
             "notes": self.notes,
             "user_id": self.user_id,
-            "stops": [stop.to_json() for stop in self.stops]
+            "stops": [stop.to_json() for stop in self.stops],
+            "media": [m.to_json() for m in self.media] 
         }
         
 class Stop(db.Model):
@@ -77,6 +88,7 @@ class Stop(db.Model):
     expected_weather = db.Column(db.String(120), nullable=True)
     last_weather_update = db.Column(db.DateTime, nullable=True)
     trip_id = db.Column(db.Integer, db.ForeignKey('trip.id'), nullable=False)
+    media = db.relationship('Media', backref='stop', lazy=True, cascade="all, delete-orphan", foreign_keys='Media.stop_id')
     
     def to_json(self):
         return {
@@ -90,5 +102,28 @@ class Stop(db.Model):
             "visited": self.visited,
             "expected_weather": self.expected_weather,
             "last_weather_update": self.last_weather_update.strftime("%Y-%m-%d %H:%M:%S") if self.last_weather_update else None,
-            "trip_id": self.trip_id
+            "trip_id": self.trip_id,
+            "media": [m.to_json() for m in self.media]
+        }
+
+class Media(db.Model):
+    __tablename__ = 'media'
+    id = db.Column(db.Integer, primary_key=True)
+    url = db.Column(db.String(512), nullable=False)
+    media_type = db.Column(db.String(50), nullable=True, default='image')
+    caption = db.Column(db.String(255), nullable=True)
+    date_created = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    trip_id = db.Column(db.Integer, db.ForeignKey('trip.id'), nullable=True)
+    stop_id = db.Column(db.Integer, db.ForeignKey('stop.id'), nullable=True)
+    
+    def to_json(self):
+        return {
+            "id": self.id,
+            "url": self.url,
+            "media_type": self.media_type,
+            "caption": self.caption,
+            "date_created": self.date_created.strftime("%Y-%m-%d %H:%M:%S") if self.date_created else None,
+            "trip_id": self.trip_id,
+            "stop_id": self.stop_id
         }
