@@ -6,7 +6,7 @@ import requests
 from functools import wraps
 from flask import request, jsonify, current_app
 from werkzeug.utils import secure_filename
-from models import User
+from models import db, User
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -42,7 +42,7 @@ def token_required(f):
                 current_app.config['SECRET_KEY'],
                 algorithms=['HS256']
             )
-            current_user = db.session.get(User, data['user_id']) if hasattr(db, 'session') else User.query.get(data['user_id'])
+            current_user = db.session.get(User, data['user_id'])
             if not current_user:
                 return jsonify({"error": "Usuario no encontrado"}), 401
         except jwt.ExpiredSignatureError:

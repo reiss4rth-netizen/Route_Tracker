@@ -173,10 +173,7 @@ def get_my_profile(current_user):
 @app.route('/api/user/<string:username>', methods=['GET'])
 def get_public_profile(username):
     user = User.query.filter_by(username=username).first_or_404()
-    public_trips = Trip.query.filter_by(user_id=user.id, is_public=True).order_by(Trip.start_date.desc()).all()
-    profile_data = user.to_public_json()
-    profile_data['trips']= [trip.to_json() for trip in public_trips]
-    return jsonify(profile_data), 200
+    return jsonify(user.to_public_json(include_trips=True)), 200
 
 # Buscador de perfiles
 @app.route('/api/search')

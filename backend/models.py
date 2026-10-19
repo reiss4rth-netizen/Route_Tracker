@@ -31,14 +31,22 @@ class User(db.Model):
             "date_created": self.date_created.strftime("%Y-%m-%d %H:%M:%S")
         }
         
-    def to_public_json(self):
-        return {
+    def to_public_json(self, include_trips=True):
+        data = {
             "id": self.id,
             "name": self.name,
             "username": self.username,
             "profile_photo": self.profile_photo,
             "date_created": self.date_created.strftime("%Y-%m-%d %H:%M:%S")
         }
+        if include_trips:
+            public_trips = sorted(
+                [trip for trip in self.trips if trip.is_public],
+                key=lambda t: t.start_date,
+                reverse=True
+            )
+            data["trips"] = [trip.to_json() for trip in public_trips]
+        return data
              
 class Trip(db.Model):
     __tablename__ = 'trip'
