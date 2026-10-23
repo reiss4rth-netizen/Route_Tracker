@@ -13,7 +13,8 @@ from services import (
     get_coordinates_from_address,
     upload_file_to_s3,
     delete_file_from_s3,
-    allowed_file
+    allowed_file,
+    get_route_data
 )
 
 load_dotenv()
@@ -194,35 +195,50 @@ def get_users():
 def create_trip(current_user):
     data = request.get_json(silent=True)
     if not data:
-        return jsonify({"error": "Faltan datos obligatorios"}), 400
+        return jsonify({
+            "error": "Faltan datos obligatorios"
+        }), 400
     if not all(field in data for field in ['origin', 'destination', 'start_date']):
-        return jsonify({"error": "Faltan datos obligatorios"}), 400
+        return jsonify({
+            "error": "Faltan datos obligatorios"
+        }), 400
+    
     try:
         start_date_obj = datetime.strptime(data['start_date'], "%Y-%m-%d %H:%M:%S")
-        distancia_simulation = 100.0  # Simulated distance in km
-        duration_simulation = 120.0    # Simulated duration in minutes
-        calculated_end_date = start_date_obj + timedelta(minutes=duration_simulation)
+        start_lat, start_lon = get_coordinates_from_address(data['origin'])
+        end_lat, end_lon = get_coordinates_from_address(data['destination'])
+        if None in (start_lat, start_lon, end_lat, end_lon):
+            return jsonify({
+                "error": "No se pudo localizar"
+            }),400
+            
+        api_key = app.config['ROUTES_API_KEY']
+        distance_km, duration_minutes = get_route_data((start_lat, start_lon), (end_lat, end_lon), api_key)
+        if distance_km is None or duration_minutes is None:
+            return jsonify({
+                "error": "No se pudo trazar la ruta"
+            }), 400
+        calculated_end_date = start_date_obj + timedelta(minutes = duration_minutes)
         
         new_trip = Trip(
             origin= data['origin'],
             destination= data['destination'],
             start_date= start_date_obj,
             end_date= calculated_end_date,
-            distance_km= distancia_simulation,
-            duration_minutes= duration_simulation,
+            distance_km= round(distance_km, 2),
+            duration_minutes= round(duration_minutes, 2),
             status= data.get('status', 'planned'),
             notes= data.get('notes'),
-            user_id= current_user.id,
+            user_id= current_user.id, # Lógica forzada por el token
             is_public= data.get('is_public', False)
         )
         db.session.add(new_trip)
         db.session.flush()
-        
         if 'stops' in data and isinstance(data['stops'], list):
             for index, stop_data in enumerate(data['stops']):
                 new_stop = Stop(
                     name=stop_data.get('name'),
-                    stop_type=stop_data.get('stop_type'), # Campo requerido añadido
+                    stop_type=stop_data.get('stop_type'),
                     latitude=stop_data.get('latitude'),
                     longitude=stop_data.get('longitude'),
                     stop_order=index,
@@ -231,18 +247,33 @@ def create_trip(current_user):
                     expected_weather=stop_data.get('expected_weather'),
                     last_weather_update=datetime.strptime(stop_data['last_weather_update'], "%Y-%m-%d %H:%M:%S") if 'last_weather_update' in stop_data else None,
                     trip_id=new_trip.id
-            )
+                )
                 db.session.add(new_stop)
         db.session.commit()
+        
+        trip_response = new_trip.to_json()
+        trip_response['author'] = {
+            "id": current_user.id,
+            "username": current_user.username,
+            "name": current_user.name,
+            "profile_photo": current_user.profile_photo
+        }
+        
         return jsonify({
-            "message": "Viaje creado exitosamente", 
-            "trip": new_trip.to_json()
-            }), 201
+            "message": "viaje creado con éxito",
+            "trip": trip_response
+        }), 201
     except ValueError:
-        return jsonify({"error": "Formato de fecha inválido. Use 'YYYY-MM-DD HH:MM:SS'"}), 400
+        return jsonify({
+            "error": "Formato de fecha inválido"
+        })
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "Error al crear el viaje", "details": str(e)}), 500
+        return jsonify ({
+            "error": "Error al crear el viaje",
+            "details": str(e)
+        }), 500
+                
     
 # Rutas públicas para el feed 
 @app.route('/api/feed')

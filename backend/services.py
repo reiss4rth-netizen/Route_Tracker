@@ -67,6 +67,29 @@ def get_coordinates_from_address(city):
             return float(data[0]['lat']), float(data[0]['lon'])
     return None, None
 
+# Obtener datos del viaje
+def get_route_data(start_coords, end_coords, api_key):
+    # headers = {
+    #     'Accept': 'application/json, appliccation/geo+json, img/png; charset=utf-8',
+    #     'authorization': api_key
+    # }
+    # url = f"https://api.openrouteservice.org/v2/directions/driving-car?start={start_coords[1]},{start_coords[0]}&end={end_coords[1]},{end_coords[0]}"
+    
+    # try:
+    #     response = request.get(url, headers=headers)
+    #     if response.status_code == 200:
+    #         data = response.json()
+    #         features = data.get('featurea', [])
+    #         if features:
+    #             summary = features[0]['properties']['summary']
+    #             distance_km = summary['distance'] / 1000
+    #             durations_mins = summary['duration'] / 60
+    #             return distance_km, durations_mins
+    # except Exception:
+    #     pass
+    #     return None, None
+    return 150.5, 120.0
+
 # ---Multimedia (AWS S3)---
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSION
@@ -91,3 +114,4 @@ def delete_file_from_s3(file_url):
         s3_client.delete_object(Bucket=BUCKET_NAME, Key=key)
     except Exception:
         pass
+    
