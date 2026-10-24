@@ -1,6 +1,7 @@
 import React from 'react'
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { registerService } from '../services/userServices';
 import { RegisterStyles } from '../styles/RegisterStyles';
 
@@ -9,11 +10,13 @@ export default function RegisterScreen() {
     const [password, setPassword] = useState('')
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
+    const navigate = useNavigation()
 
     const handleRegister = async () => {
         try {
-            const response = registerService(name, userName, email, password);
+            const response = await registerService(name, userName, email, password);
             alert(response.message)
+            navigate.replace('OwnProfile')
         } catch (error) {
             alert(error.message)
         }
@@ -28,7 +31,7 @@ export default function RegisterScreen() {
                     placeholder='Nombre'
                     placeholderTextColor="#aaa"
                     value={name}
-                    autoCapitalize='none'
+                    autoCapitalize='words'
                     onChangeText={setName}
                 />
                 <TextInput
@@ -37,7 +40,7 @@ export default function RegisterScreen() {
                     placeholderTextColor="#aaa"
                     value={userName}
                     autoCapitalize='none'
-                    onChangeText={setEmail}
+                    onChangeText={setUserName}
                 />
                 <TextInput
                     style={RegisterStyles.formControl}

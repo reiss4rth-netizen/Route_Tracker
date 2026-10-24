@@ -64,3 +64,26 @@ export const getMyProfileService = async () => {
         throw error;
     }
 };
+
+export const deleteUserService = async (userId) => {
+    try {
+        const token = await AsyncStorage.getItem('userToken')
+        if (!token) {
+            throw new Error ('Accion no autorizada');
+        }
+        const response = await fetch(`${API_URL}/user/${userId}`, {
+            method: 'DELETE', 
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await response.json()
+        if (!response.ok) {
+            throw new Error('data.error' || 'Error al eliminar usuario')
+        }
+        return data;
+    } catch (error) {
+        throw error;
+    }
+}
