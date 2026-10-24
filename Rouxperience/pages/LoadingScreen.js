@@ -1,40 +1,26 @@
 import React from 'react'
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { LoadingStyles } from '../styles/LoadingStyles';
 
 export default function LoadingScreen() {
+    const navigation = useNavigation()
     return (
-        <view style={styles.container}>
-            <View style={Styles.cloudsContainer}>
-                <Text style={StyleSheet.cloud}>☁️</Text>
-                <Text style={styles.cloud}>☁️</Text>
-                <Text style={styles.cloud}>☁️</Text>
+        <View style={LoadingStyles.container}>
+            <View style={LoadingStyles.cloudsContainer}>
+                <Text style={LoadingStyles.cloud}>☁️</Text>
+                <Text style={LoadingStyles.cloud}>☁️</Text>
+                <Text style={LoadingStyles.cloud}>☁️</Text>
             </View>
-            <Text style={styles.title}>Bienvenido a Rouxperience</Text>
-        </view>
+            <Text style={LoadingStyles.title}>Bienvenido a Rouxperience</Text>
+            <View style={LoadingStyles.buttonsContainer}>
+                <TouchableOpacity style={LoadingStyles.buttons} onPress={() => navigation.navigate('Login')}>
+                    <Text style={LoadingStyles.textButton}>Iniciar sesión</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={LoadingStyles.buttons} onPress={() => navigation.navigate('Register')}>
+                    <Text style={LoadingStyles.textButton}>Regístrate</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
     )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1, // Le indica a la vista que ocupe el 100% de la pantalla
-    backgroundColor: '#87CEEB', // Azul cielo
-    justifyContent: 'center', // Centra verticalmente el contenido
-    alignItems: 'center', // Centra horizontalmente el contenido
-  },
-  cloudsContainer: {
-    position: 'absolute', // Saca a las nubes del flujo central
-    top: 60, // Distancia desde el borde superior de la pantalla
-    flexDirection: 'row', // Coloca los elementos en fila (horizontal)
-    width: '100%',
-    justifyContent: 'space-evenly', // Reparte el espacio entre las nubes
-  },
-  cloud: {
-    fontSize: 50,
-  },
-  title: {
-    color: '#ffffff',
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  }
-});''
