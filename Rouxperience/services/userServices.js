@@ -33,7 +33,7 @@ export const registerService = async (name, username, email, password) => {
         });
         const data = await response.json()
         if (!response.ok) {
-            throw new error (data.error || 'Error al registrar usuari.')
+            throw new Error (data.error || 'Error al registrar usuari.')
         }
         await AsyncStorage.setItem('userToken', data.token);
         return data;
@@ -42,7 +42,7 @@ export const registerService = async (name, username, email, password) => {
     }
 }
 
-export const GetMyProfileService = async () => {
+export const getMyProfileService = async () => {
     try {
         const token = await AsyncStorage.getItem('userToken');
         if (!token) {
@@ -57,7 +57,7 @@ export const GetMyProfileService = async () => {
         });
         const data = await response.json();
         if (!response.ok) {
-            throw new error(data.error || 'Error al obtener el perfil')
+            throw new Error(data.error || 'Error al obtener el perfil')
         }
         return data;
     } catch (error) {
