@@ -1,6 +1,7 @@
 import React from 'react'
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View, TouchableOpacity } from 'react-native';
+import { registerService } from '../services/userServices';
 import { RegisterStyles } from '../styles/RegisterStyles';
 
 export default function RegisterScreen() {
@@ -8,6 +9,16 @@ export default function RegisterScreen() {
     const [password, setPassword] = useState('')
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
+
+    const handleRegister = async () => {
+        try {
+            const response = registerService(name, userName, email, password);
+            alert(response.message)
+        } catch (error) {
+            alert(error.message)
+        }
+    }
+
     return (
         <View style={RegisterStyles.container}>
             <View style={RegisterStyles.form}>
@@ -19,6 +30,14 @@ export default function RegisterScreen() {
                     value={name}
                     autoCapitalize='none'
                     onChangeText={setName}
+                />
+                <TextInput
+                    style={RegisterStyles.formControl}
+                    placeholder='Username'
+                    placeholderTextColor="#aaa"
+                    value={userName}
+                    autoCapitalize='none'
+                    onChangeText={setEmail}
                 />
                 <TextInput
                     style={RegisterStyles.formControl}
@@ -37,7 +56,7 @@ export default function RegisterScreen() {
                     autoCapitalize='none'
                     onChangeText={setPassword}
                 />
-                <TouchableOpacity style={RegisterStyles.button}>
+                <TouchableOpacity style={RegisterStyles.button} onPress={handleRegister}>
                     <Text style={RegisterStyles.buttonText}>Entrar</Text>
                 </TouchableOpacity>
             </View>
