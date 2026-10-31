@@ -63,4 +63,8 @@ export const ProfileStyles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 16,
     },
+    image: {
+        height: 100,
+        width: 100
+    }
 });

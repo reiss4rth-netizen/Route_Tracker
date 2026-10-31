@@ -46,7 +46,7 @@ export const getMyProfileService = async () => {
     try {
         const token = await AsyncStorage.getItem('userToken');
         if (!token) {
-            throw new error('Acción no autorzada')
+            throw new Error('Acción no autorzada')
         }
         const response = await fetch(`${API_URL}/me`, {
             method: 'GET', 

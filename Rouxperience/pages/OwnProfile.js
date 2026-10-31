@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { Image, Text, View, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMyProfileService, deleteUserService } from '../services/userServices';
@@ -70,6 +70,10 @@ export default function OwnProfileScreen() {
 
                 {user ? (
                     <View style={ProfileStyles.infoContainer}>
+                        <Image
+                        source={{ uri: user.profile_photo }}
+                        style={ProfileStyles.image}
+                        />
                         <Text style={ProfileStyles.label}>Nombre:</Text>
                         <Text style={ProfileStyles.value}>{user.name}</Text>
 
