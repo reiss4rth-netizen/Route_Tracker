@@ -16,7 +16,8 @@ export default function LoginScreen() {
             console.log("Sesión iniciada exitosamente", data.message)
             navigation.replace('OwnProfile')
         } catch (error) {
-            Alert.alert("Atención", error.message)
+            // Alert.alert("Atención", error.message)
+            console.log(await response.text())
         }
     }
     return (
